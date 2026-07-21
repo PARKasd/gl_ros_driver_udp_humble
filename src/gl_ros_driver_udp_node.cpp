@@ -1,5 +1,5 @@
-#include <ros/ros.h>
-#include <sensor_msgs/LaserScan.h>
+#include <rclcpp/rclcpp.hpp>
+#include <sensor_msgs/msg/laser_scan.hpp>
 
 #include "gl_driver.h"
 
@@ -7,43 +7,37 @@
 int main(int argc, char** argv)
 {
     // ros init
-    std::string gl_ip;
-    int gl_port;
-    int pc_port;
-    std::string frame_id;
-    std::string pub_topicname_lidar;
-    double angle_offset;
-    
-    ros::init(argc, argv, "gl_ros_driver_udp_node");
-    ros::NodeHandle nh;
-    ros::NodeHandle nh_priv("~");
+    rclcpp::init(argc, argv);
+    auto node = std::make_shared<rclcpp::Node>("gl_ros_driver_udp_node");
 
-    nh_priv.param("gl_ip", gl_ip, gl_ip);
-    nh_priv.param("gl_port", gl_port, gl_port);
-    nh_priv.param("pc_port", pc_port, pc_port);
-    nh_priv.param("frame_id", frame_id, frame_id);
-    nh_priv.param("pub_topicname_lidar", pub_topicname_lidar, pub_topicname_lidar);
-    nh_priv.param("angle_offset", angle_offset, angle_offset);
+    std::string gl_ip = node->declare_parameter<std::string>("gl_ip", "10.110.1.2");
+    int gl_port = node->declare_parameter<int>("gl_port", 2000);
+    int pc_port = node->declare_parameter<int>("pc_port", 3000);
+    std::string frame_id = node->declare_parameter<std::string>("frame_id", "laser");
+    std::string pub_topicname_lidar = node->declare_parameter<std::string>("pub_topicname_lidar", "scan");
+    double angle_offset = node->declare_parameter<double>("angle_offset", 0.0);
 
-    ros::Publisher data_pub = nh.advertise<sensor_msgs::LaserScan>(pub_topicname_lidar, 10);
+    // reliable QoS so both reliable and best-effort subscribers can connect
+    auto data_pub = node->create_publisher<sensor_msgs::msg::LaserScan>(
+        pub_topicname_lidar, rclcpp::QoS(rclcpp::KeepLast(10)));
 
     // GL Init
-    SOSLAB::GL gl(gl_ip,gl_port,pc_port);
-    std::cout << "Serial Num : " << gl.GetSerialNum() << std::endl;
+    SOSLAB::GL gl(gl_ip, gl_port, pc_port);
+    RCLCPP_INFO(node->get_logger(), "Serial Num : %s", gl.GetSerialNum().c_str());
     gl.SetFrameDataEnable(true);
 
     // loop
-    ros::Rate loop_rate(80);
-    while(ros::ok())
+    rclcpp::Rate loop_rate(80);
+    while(rclcpp::ok())
     {
-        sensor_msgs::LaserScan scan_msg;
+        sensor_msgs::msg::LaserScan scan_msg;
 
         SOSLAB::GL::framedata_t frame_data;
         gl.ReadFrameData(frame_data);
         int num_data = frame_data.distance.size();
-        if(num_data>0)
+        if(num_data > 0)
         {
-            scan_msg.header.stamp = ros::Time::now();
+            scan_msg.header.stamp = node->now();
             scan_msg.header.frame_id = frame_id;
             scan_msg.angle_min = frame_data.angle[0] + angle_offset*3.141592/180.0;
             scan_msg.angle_max = frame_data.angle[num_data-1] + angle_offset*3.141592/180.0;
@@ -55,15 +49,16 @@ int main(int argc, char** argv)
             {
                 scan_msg.ranges[i] = frame_data.distance[i];
             }
-            
-            data_pub.publish(scan_msg);
+
+            data_pub->publish(scan_msg);
         }
 
-        ros::spinOnce();
+        rclcpp::spin_some(node);
         loop_rate.sleep();
     }
 
     gl.SetFrameDataEnable(false);
+    rclcpp::shutdown();
 
     return 0;
 }

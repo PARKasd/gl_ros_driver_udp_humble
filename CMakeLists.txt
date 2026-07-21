@@ -1,53 +1,61 @@
-cmake_minimum_required(VERSION 2.8.3)
+cmake_minimum_required(VERSION 3.8)
 project(gl_ros_driver_udp)
 
-add_compile_options(-std=c++11)
+if(NOT CMAKE_CXX_STANDARD)
+  set(CMAKE_CXX_STANDARD 17)
+  set(CMAKE_CXX_STANDARD_REQUIRED ON)
+endif()
 
-find_package(catkin REQUIRED COMPONENTS
-  roscpp
-  sensor_msgs
-)
+find_package(ament_cmake REQUIRED)
+find_package(rclcpp REQUIRED)
+find_package(sensor_msgs REQUIRED)
+find_package(Threads REQUIRED)
 
-###################################
-## catkin specific configuration ##
-###################################
-catkin_package(
-  CATKIN_DEPENDS roscpp sensor_msgs
+include_directories(
+  include
+  include/gl_driver_libraries
 )
 
 ###########
 ## Build ##
 ###########
 
-include_directories(
-  include
-  include/gl_driver_libraries
-  ${catkin_INCLUDE_DIRS}
-)
-
-if (NOT TARGET serial)
 file(GLOB serial_src "include/gl_driver_libraries/serial/*.cc")
-add_library(serial SHARED ${serial_src})
-endif()
-if (NOT TARGET udp)
-file(GLOB udp_src "include/gl_driver_libraries/udp/*.cpp")
-add_library(udp SHARED ${udp_src})
-endif()
-if (NOT TARGET gl_driver)
-add_library(gl_driver SHARED include/gl_driver_libraries/gl_driver.cpp)
-endif()
+add_library(serial STATIC ${serial_src})
+target_link_libraries(serial Threads::Threads)
+set_target_properties(serial PROPERTIES POSITION_INDEPENDENT_CODE ON)
 
+file(GLOB udp_src "include/gl_driver_libraries/udp/*.cpp")
+add_library(udp STATIC ${udp_src})
+set_target_properties(udp PROPERTIES POSITION_INDEPENDENT_CODE ON)
+
+add_library(gl_driver STATIC include/gl_driver_libraries/gl_driver.cpp)
+target_link_libraries(gl_driver serial udp Threads::Threads)
+set_target_properties(gl_driver PROPERTIES POSITION_INDEPENDENT_CODE ON)
 
 add_executable(${PROJECT_NAME}_node
   src/${PROJECT_NAME}_node.cpp
 )
+ament_target_dependencies(${PROJECT_NAME}_node
+  rclcpp
+  sensor_msgs
+)
 target_link_libraries(${PROJECT_NAME}_node
-  ${catkin_LIBRARIES}
   gl_driver
   serial
   udp
 )
-add_dependencies(${PROJECT_NAME}_node
-  ${${PROJECT_NAME}_EXPORTED_TARGETS} 
-  ${catkin_EXPORTED_TARGETS}
+
+#############
+## Install ##
+#############
+
+install(TARGETS ${PROJECT_NAME}_node
+  DESTINATION lib/${PROJECT_NAME}
 )
+
+install(DIRECTORY launch rviz
+  DESTINATION share/${PROJECT_NAME}
+)
+
+ament_package()

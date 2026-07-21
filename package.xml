@@ -1,8 +1,9 @@
 <?xml version="1.0"?>
-<package format="2">
+<?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
+<package format="3">
   <name>gl_ros_driver_udp</name>
   <version>0.0.1</version>
-  <description>The gl_ros_driver_udp package</description>
+  <description>The gl_ros_driver_udp package (ROS 2 Humble)</description>
 
   <maintainer email="msd@soslab.co">SOSLAB Co., Ltd.</maintainer>
 
@@ -10,7 +11,14 @@
 
   <url type="website">http://soslab.co</url>
 
-  <buildtool_depend>catkin</buildtool_depend>
-  <depend>roscpp</depend>
+  <buildtool_depend>ament_cmake</buildtool_depend>
+
+  <depend>rclcpp</depend>
   <depend>sensor_msgs</depend>
+
+  <exec_depend>ros2launch</exec_depend>
+
+  <export>
+    <build_type>ament_cmake</build_type>
+  </export>
 </package>
