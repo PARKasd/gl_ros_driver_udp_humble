@@ -31,6 +31,11 @@ $ ros2 launch gl_ros_driver_udp view_gl_ros_driver_udp.launch.py
 ## Published Topics
 - _scan_ (sensor_msgs/msg/LaserScan): it publishes scan topic from the laser (reliable QoS, keep last 10).
 
+## Troubleshooting
+- The LiDAR is fixed at `10.110.1.2`; the PC **must** be `10.110.1.3` — the LiDAR sends scan data only to `10.110.1.3:3000`. Never assign `10.110.1.2` to the PC: `ping 10.110.1.2` then answers from the PC itself and no data arrives.
+- On startup the node prints `Serial Num : <number>`. If it prints `Serial Number is not received`, the driver cannot reach the LiDAR: check the PC IP, the cable/link, and that no stale driver process holds UDP port 3000 (`ss -ulnp | grep 3000`).
+- Nothing visible in a plain `rviz2` window: set **Fixed Frame** to `laser` and add the `/scan` LaserScan display (or use `view_gl_ros_driver_udp.launch.py`, which is preconfigured).
+
 ## Test environment
 - ROS 2 Humble Hawksbill
 - Ubuntu 22.04
